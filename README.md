@@ -182,6 +182,39 @@ useEffect(() => {
 }, []);
 ```
 
+## Testing
+
+The plugin extends the NativePHP testing suite with microphone-specific helpers, so your app tests can fake recordings and assert recording activity without knowing any bridge internals:
+
+```php
+use Native\Mobile\Testing\Native;
+
+it('saves a voice memo', function () {
+    Native::fakeBridge()->withRecording('/storage/emulated/0/audio/note.m4a');
+
+    Native::test(VoiceMemo::class)
+        ->tap('Record')
+        ->assertRecordingStarted();
+});
+
+it('shows the paused state in the UI', function () {
+    Native::fakeBridge()->withMicrophoneStatus('paused');
+
+    Native::test(VoiceMemo::class)
+        ->assertSet('status', 'paused');
+});
+```
+
+### Helpers
+
+- `withRecording(?string $path = null)` — fake a completed recording. `getStatus()` reports `"idle"` and `getRecording()` reports `$path` (a generic `.m4a` path when omitted) — the state right after a real recording session ends.
+- `withMicrophoneStatus(string $status)` — script `getStatus()` directly (e.g. `"recording"` or `"paused"`), without a completed recording on disk.
+- `assertRecordingStarted()` — assert a recording was started.
+- `assertRecordingStopped()` — assert the recording was stopped.
+- `assertNothingRecorded()` — assert no recording was ever started.
+
+The helpers are available on `Native::fakeBridge()` and chain directly off `Native::test(...)`. They register automatically while running tests (requires a core with a macroable FakeBridge; on older cores they simply don't register).
+
 ## Notes
 
 - **Microphone Permission:** The first time your app requests microphone access, users will be prompted for permission. If denied, recording functions will fail silently.
